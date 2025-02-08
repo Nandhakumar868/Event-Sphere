@@ -26,7 +26,14 @@ const createEvent = async (req, res) => {
     const image = req.file ? req.file.path : null; // Get the file path
 
     // Ensure tags are stored as an array
-    const tagsArray = Array.isArray(tags) ? tags : tags.split(",").map(tag => tag.trim());
+    const tagsArray = Array.isArray(tags)
+      ? tags
+      : tags.split(",").map((tag) => tag.trim());
+
+    // Remove _id from the request body if it exists
+    if (req.body._id) {
+      delete req.body._id;
+    }
 
     const event = await Event.create({
       title,
@@ -34,14 +41,14 @@ const createEvent = async (req, res) => {
       date,
       time,
       location,
-      tags: tagsArray, // Store tags properly
+      tags: tagsArray,
       image,
       createdBy: req.user.id,
       attendees: [],
       attendeesCount: 0,
     });
 
-    req.io.emit("new_event", event); // Emit event to all users
+    req.io.emit("new_event", event); // Emit the event to all clients
 
     res.status(201).json(event);
   } catch (error) {
@@ -52,6 +59,7 @@ const createEvent = async (req, res) => {
     });
   }
 };
+
 
 
 // Get all events (Public access)

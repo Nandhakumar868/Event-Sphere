@@ -6,7 +6,7 @@ import EventDetails from "./EventDetails";
 import { AuthContext } from "../context/AuthProvider";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5000"); // Update with your backend socket server URL
+const socket = io(`${import.meta.env.VITE_API_URL}`); // Update with your backend socket server URL
 
 const Dashboard = () => {
   const [events, setEvents] = useState([]);
@@ -32,10 +32,20 @@ const Dashboard = () => {
     getEvents();
   }, []);
 
+useEffect(() => {
+  filterEvents(events, startDate, startTime, endDate, endTime, selectedTags);
+}, [events, startDate, startTime, endDate, endTime, selectedTags]);
+
   useEffect(() => {
     // Listen for events via Socket.IO
     socket.on("new_event", (newEvent) => {
-    setEvents((prevEvents) => [...prevEvents, newEvent]);
+    console.log("New event received:", newEvent); // Ensure this logs every time a new event is received
+    setEvents((prevEvents) => {
+      if (prevEvents.some((event) => event._id === newEvent._id)) {
+        return prevEvents; // Avoid duplication
+      }
+      return [...prevEvents, newEvent];
+    });
   });
 
     socket.on("event_updated", (updatedEvent) => {
@@ -55,56 +65,45 @@ const Dashboard = () => {
   });
 
     socket.on("event_deleted", (deletedEventId) => {
-       setEvents((prevEvents) => prevEvents.filter((event) => event._id !== deletedEventId));
-    setUpcomingEvents((prev) => prev.filter((event) => event._id !== deletedEventId));
-    setPastEvents((prev) => prev.filter((event) => event._id !== deletedEventId));
+      setEvents((prevEvents) =>
+        prevEvents.filter((event) => event._id !== deletedEventId)
+      );
     });
 
     return () => {
-      socket.off("new-event");
+      socket.off("new_event");
       socket.off("event_updated");
-      // socket.off("attendee_joined");
+      socket.off("attendee_joined");
       socket.off("event_deleted");
     };
-  }, [events]);
+  }, []);
 
-  // const updateEventInList = (updatedEvent) => {
-  //   const currentDateTime = new Date(); // Define currentDateTime here
 
-  //   setEvents((prevEvents) =>
-  //     prevEvents.map((event) =>
-  //       event._id === updatedEvent._id ? updatedEvent : event
-  //     )
-  //   );
-  //   console.log("Hello")
-
-  //   // Update upcoming and past events lists
-  // setUpcomingEvents((prev) => {
-  //   const filtered = prev.filter((event) => event._id !== updatedEvent._id);
-  //   return new Date(updatedEvent.date) > currentDateTime ? [...filtered, updatedEvent] : filtered;
-  // });
-
-  // setPastEvents((prev) => {
-  //   const filtered = prev.filter((event) => event._id !== updatedEvent._id);
-  //   return new Date(updatedEvent.date) <= currentDateTime ? [...filtered, updatedEvent] : filtered;
-  // });
-  // };
-
-const filterEvents = (eventList, sDate, sTime, eDate, eTime, selectedTags = []) => {
+const filterEvents = (
+  eventList,
+  sDate,
+  sTime,
+  eDate,
+  eTime,
+  selectedTags = []
+) => {
   const currentDateTime = new Date();
   let filteredEvents = eventList;
 
-  let startDateTime = sDate && sTime ? new Date(`${sDate}T${sTime}:00`) : null;
-  let endDateTime = eDate && eTime ? new Date(`${eDate}T${eTime}:00`) : null;
+  const startDateTime = sDate
+    ? new Date(`${sDate}T${sTime || "00:00"}:00`)
+    : null;
+  const endDateTime = eDate
+    ? new Date(`${eDate}T${eTime || "23:59"}:00`)
+    : null;
 
-  filteredEvents = eventList.filter((event) => {
+  filteredEvents = filteredEvents.filter((event) => {
     const eventDateTime = new Date(event.date);
 
-    // Normalize tags to lowercase for comparison
-    const eventTags = Array.isArray(event.tags)
-      ? event.tags.map((tag) => tag.toLowerCase())
-      : [];
-
+    // Normalize tags for comparison
+    const eventTags = (Array.isArray(event.tags) ? event.tags : []).map((tag) =>
+      tag.toLowerCase()
+    );
     const normalizedSelectedTags = selectedTags.map((tag) => tag.toLowerCase());
 
     // Check date range
@@ -112,30 +111,35 @@ const filterEvents = (eventList, sDate, sTime, eDate, eTime, selectedTags = []) 
       (!startDateTime || eventDateTime >= startDateTime) &&
       (!endDateTime || eventDateTime <= endDateTime);
 
-    // Check tag matching
+    // Check if event has at least one matching tag
     const hasMatchingTag =
-      normalizedSelectedTags.length === 0 || 
+      normalizedSelectedTags.length === 0 ||
       eventTags.some((tag) => normalizedSelectedTags.includes(tag));
 
     return isWithinDateRange && hasMatchingTag;
   });
 
-  setUpcomingEvents(filteredEvents.filter((event) => new Date(event.date) > currentDateTime));
-  setPastEvents(filteredEvents.filter((event) => new Date(event.date) < currentDateTime));
+  setUpcomingEvents(
+    filteredEvents.filter((event) => new Date(event.date) > currentDateTime)
+  );
+  setPastEvents(
+    filteredEvents.filter((event) => new Date(event.date) <= currentDateTime)
+  );
 };
+
 
 const handleFilterChange = () => {
   filterEvents(events, startDate, startTime, endDate, endTime, selectedTags);
 };
 
-  const clearFilters = () => {
+const clearFilters = () => {
   setStartDate("");
   setEndDate("");
   setStartTime("");
-    setEndTime("");
-    setSelectedTags([]);
-  filterEvents(events, "", "", "", "",[]);
+  setEndTime("");
+  setSelectedTags([]);
 };
+
 
 const toggleTag = (tag) => {
     setSelectedTags((prevTags) =>
@@ -143,7 +147,7 @@ const toggleTag = (tag) => {
     );
   };
 
-  const availableTags = ["workshop", "event", "seminar", "conference"];
+  const availableTags = ["Startups", "Networking", "Art", "Technology"];
 
   return (
     <div className="p-4 bg-gray-800 bg-opacity-30 text-white min-h-screen">

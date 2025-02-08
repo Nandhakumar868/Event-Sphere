@@ -29,6 +29,7 @@ const EventForm = ({ token }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -36,12 +37,13 @@ const EventForm = ({ token }) => {
     }
 
     const eventData = new FormData();
+
     Object.keys(formData).forEach((key) => {
       if (key === "tags") {
         eventData.append(key, formData[key].join(","));
       } else if (key === "image" && formData[key]) {
         eventData.append(key, formData[key]); // Append image only if selected
-      } else if (key !== "image") {
+      } else if (key !== "image" && key !== "_id") {
         eventData.append(key, formData[key]);
       }
     });

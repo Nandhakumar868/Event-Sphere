@@ -1,32 +1,41 @@
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5000", { transports: ["websocket"] });
+const token = localStorage.getItem("token"); // Ensure the token is available
+
+const backendUrl = import.meta.env.VITE_API_URL
+
+const socket = io(backendUrl, {
+  transports: ["websocket"],
+  auth: { token },
+});
 
 // Connect and listen to Socket.IO events
 socket.on("connect", () => {
-  console.log("Connected to Socket.IO server");
+  console.log("Connected to Socket.IO server", socket.id);
 });
 
+
 // Listen for real-time updates
-socket.on("eventCreated", (event) => {
+socket.on("new_event", (event) => {
   console.log("New event created:", event);
 });
 
-socket.on("eventUpdated", (event) => {
+socket.on("event_updated", (event) => {
   console.log("Event updated:", event);
 });
 
-socket.on("eventJoined", (eventId) => {
-  console.log(`User joined event: ${eventId}`);
+socket.on("attendee_joined", (event) => {
+  console.log("User joined event:", event);
 });
 
-socket.on("eventDeleted", (eventId) => {
+socket.on("event_deleted", (eventId) => {
   console.log(`User deleted event: ${eventId}`);
 });
 
+// Fetch all events
 export const fetchEvents = async () => {
   try {
-    const response = await fetch("http://localhost:5000/api/events/", {
+    const response = await fetch(`${backendUrl}/api/events/`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -40,13 +49,15 @@ export const fetchEvents = async () => {
 
     return await response.json();
   } catch (error) {
+    console.error("Error fetching events:", error);
     return { error: error.message };
   }
 };
 
+// Create a new event
 export const createEvent = async (eventData, token) => {
   try {
-    const response = await fetch("http://localhost:5000/api/events/", {
+    const response = await fetch(`${backendUrl}/api/events/`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`, // Requires authentication
@@ -59,21 +70,24 @@ export const createEvent = async (eventData, token) => {
       throw new Error(errorData.message || "Failed to create event");
     }
 
-    const newEvent = await response.json()
+    const newEvent = await response.json();
 
     // Emit the event to notify others
-    socket.emit("createEvent", newEvent);
+    // socket.emit("create_event", newEvent);
+    console.log("Event created successfully:", newEvent); // Check if this appears
 
-    return newEvent
+    return newEvent;
   } catch (error) {
+    console.error("Error creating event:", error);
     return { error: error.message };
   }
 };
 
+// Join and event
 export const joinEvent = async (id, token) => {
   try {
     const response = await fetch(
-      `http://localhost:5000/api/events/${id}/join`,
+      `${backendUrl}/api/events/${id}/join`,
       {
         method: "PUT",
         headers: {
@@ -91,17 +105,19 @@ export const joinEvent = async (id, token) => {
     const joinedEvent = await response.json();
 
     // Emit the event to notify others
-    socket.emit("joinEvent", id);
+    socket.emit("attendee_joined", id);
 
     return joinedEvent
   } catch (error) {
+    console.error("Error joining event:", error);
     return { error: error.message };
   }
 };
 
+// Update an event
 export const updateEvent = async (id, eventData, token) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/events/${id}`, {
+    const response = await fetch(`${backendUrl}/api/events/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -119,17 +135,19 @@ export const updateEvent = async (id, eventData, token) => {
     const updatedEvent = await response.json();
 
     // Emit the event to notify others
-    socket.emit("updateEvent", updatedEvent);
+    socket.emit("update_event", updatedEvent);
 
     return updatedEvent
   } catch (error) {
+    console.error("Error updating event:", error);
     return { error: error.message };
   }
 };
 
+// Delete an event
 export const deleteEvent = async (id, token) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/events/${id}`, {
+    const response = await fetch(`${backendUrl}/api/events/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -145,10 +163,11 @@ export const deleteEvent = async (id, token) => {
     const deletedEvent = await response.json();
 
     //Optionally, you could emit a "deleteEvent" message if needed.
-    socket.emit("deleteEvent", id);
+    socket.emit("delete_event", id);
 
     return deletedEvent
   } catch (error) {
+    console.error("Error deleting event:", error);
     return { error: error.message };
   }
 };

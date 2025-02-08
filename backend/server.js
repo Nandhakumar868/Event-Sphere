@@ -31,41 +31,39 @@ app.use("/api/events", (req, res, next) => {
 
 io.use(authenticateSocket);
 io.on("connection", (socket) => {
-  console.log("New client connected", socket.id);
+  console.log(`New client connected: ${socket.id}, User: ${socket.user.name}`);
 
   socket.on("join_event", (eventId) => {
+    if (!eventId) {
+      console.log("Invalid event ID");
+      return;
+    }
     socket.join(eventId);
     console.log(`User joined event room: ${eventId}`);
   });
 
-//   socket.on("join_event", (eventId) => {
-//   // Update the event's attendees count in the database
-//   const updatedEvent = updateEventAttendees(eventId);
 
-//   // Broadcast the update to all clients
-//   socket.broadcast.emit("attendee_joined", {
-//     eventId: updatedEvent._id,
-//     attendeesCount: updatedEvent.attendeesCount
-//   });
-// });
-
-
-  socket.on("create_event", async (eventData) => {
+  socket.on("create_event", async (eventData, callback) => {
     try {
       const event = await Event.create(eventData);
-      io.emit("new_event", event); // Broadcast new event to all clients
+      console.log("New event created:", event); // Ensure this logs
+      io.emit("new_event", event); // Broadcast to all clients
     } catch (error) {
       console.error("Error creating event:", error);
     }
   });
 
   // Update an event
-  socket.on("update_event", async (eventData) => {
+  socket.on("update_event", async (eventData, callback) => {
     try {
-      const updatedEvent = await Event.findByIdAndUpdate(eventData._id, eventData, {
-        new: true,
-        runValidators: true,
-      });
+      const updatedEvent = await Event.findByIdAndUpdate(
+        eventData._id,
+        eventData,
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
 
       if (updatedEvent) {
         io.to(updatedEvent._id.toString()).emit("event_updated", updatedEvent);
@@ -73,18 +71,16 @@ io.on("connection", (socket) => {
         console.log("Event not found");
       }
     } catch (error) {
-      console.error("Error updating event:", error);
-    }
+      console.error("Error updating event:", error);    }
   });
 
   // Delete an event
-  socket.on("delete_event", async (eventId) => {
+  socket.on("delete_event", async (eventId, callback) => {
     try {
       const event = await Event.findById(eventId);
-
       if (event) {
         await event.deleteOne();
-        io.emit("event_deleted", eventId); // Notify all clients that the event is deleted
+        io.emit("event_deleted", eventId);
       } else {
         console.log("Event not found");
       }

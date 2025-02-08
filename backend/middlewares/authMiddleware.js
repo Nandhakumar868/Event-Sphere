@@ -13,8 +13,14 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.id).select("-password");
+
+       if (!req.user) {
+         return res.status(401).json({ message: "User not found" });
+       }
+
       return next();
     } catch (error) {
+      console.error("Token verification failed:", error.message);
       return res.status(401).json({ message: "Not authorized, token failed" });
     }
   }
@@ -25,19 +31,36 @@ const protect = async (req, res, next) => {
 };
 
 // Middleware for Socket authentication
-const authenticateSocket = (socket, next) => {
+const authenticateSocket = async (socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) {
+    console.error("Socket authentication failed: No token provided");
     return next(new Error("Authentication error"));
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded;
+   const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) {
+      console.error("Socket authentication failed: User not found");
+      return next(new Error("Authentication error: User not found"));
+    }
+
+    socket.user = user; // Attach the authenticated user to the socket object
     next();
   } catch (error) {
-    next(new Error("Authentication error"));
+    console.error("Socket authentication failed:", error.message);
+    next(new Error("Authentication error: Invalid or expired token"));
   }
+
+  // try {
+  //   const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  //   socket.user = decoded;
+  //   next();
+  // } catch (error) {
+  //   next(new Error("Authentication error"));
+  // }
 };
 
 module.exports = { protect, authenticateSocket };

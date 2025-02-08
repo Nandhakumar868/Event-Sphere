@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const backendUrl = "http://localhost:5000"; // Change this to your actual backend URL
+const backendUrl = import.meta.env.VITE_API_URL;
 
 const formatDateTime = (dateString, timeString) => {
   const date = new Date(dateString);

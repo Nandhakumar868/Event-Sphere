@@ -4,9 +4,9 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5000"); // Update with your backend socket server URL
+const socket = io(`${import.meta.env.VITE_API_URL}`); // Update with your backend socket server URL
 
-const backendUrl = "http://localhost:5000";
+const backendUrl = import.meta.env.VITE_API_URL;
 
 const formatDateTime = (dateString, timeString) => {
   const date = new Date(dateString);
@@ -47,29 +47,8 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedEvent, setEditedEvent] = useState(event);
 
-//   useEffect(() => {
-//   if (event) {
-//     setAttendees(event.attendeesCount);
-//     setEditedEvent(event);
-//   }
-// }, [event]); // Use `event` as the dependency
-
-
   useEffect(() => {
     if (!event || !event._id) return;
-
-    // const handleAttendeeJoined = ({ eventId, attendeesCount }) => {
-    //   console.log(`attendee_joined received for event ${eventId}, count: ${attendeesCount}`);
-    // // if (eventId === event._id) {
-    // //   setAttendees(attendeesCount);
-    // //   toast.info("A new attendee joined the event!");
-    // // }
-    //   setEvents((prevEvents) =>
-    //   prevEvents.map((event) =>
-    //     event._id === eventId ? { ...event, attendeesCount } : event
-    //   )
-    // );
-    // };
     
     socket.on("event_updated", (updatedEvent) => {
       if (updatedEvent._id === event._id) {
@@ -109,7 +88,7 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
     const response = await joinEvent(event._id, user.token);
     if (!response.error) {
       setJoined(true);
-      socket.emit("join_event", event._id); // Notify backend
+      socket.emit("attendee_joined", event._id); // Notify backend
       setAttendees((prev) => prev + 1);
       toast.success("You joined the event!");
     }
@@ -132,8 +111,6 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
   setEditedEvent({ ...editedEvent, [name]: value });
 };
 
-
-
   const handleUpdateEvent = async (e) => {
       e.preventDefault();
     const response = await updateEvent(
@@ -149,78 +126,93 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
     }
   };
 
+  const getRandomColor = (tag) => {
+    const colors = [
+      "#F87171", // Red
+      "#FBBF24", // Yellow
+      "#34D399", // Green
+      "#60A5FA", // Blue
+      "#A78BFA", // Purple
+      "#F472B6", // Pink
+      "#FACC15", // Amber
+    ];
+    const index = Math.abs(tag.charCodeAt(0) % colors.length); // Pick color based on the tag
+    return colors[index];
+  };
+
+
   return (
     <div className="text-white">
       {isEditing ? (
         <form onSubmit={handleUpdateEvent} className="bg-gray-800 p-4 rounded">
-  <label className="text-gray-400">Title</label>
-  <input
-    type="text"
-    name="title"
-    value={editedEvent.title}
-    onChange={handleEditChange}
-    className="w-full p-2 rounded bg-gray-700 text-white"
-  />
-  <label className="text-gray-400 mt-2">Description</label>
-  <textarea
-    name="description"
-    value={editedEvent.description}
-    onChange={handleEditChange}
-    className="w-full p-2 rounded bg-gray-700 text-white mt-2"
-  />
-  <label className="text-gray-400 mt-2">Location</label>
-  <input
-    type="text"
-    name="location"
-    value={editedEvent.location}
-    onChange={handleEditChange}
-    className="w-full p-2 rounded bg-gray-700 text-white mt-2"
-  />
-  <label className="text-gray-400 mt-2">Date</label>
-  <input
-    type="date"
-    name="date"
-    value={editedEvent.date}
-    onChange={handleEditChange}
-    className="w-full p-2 rounded bg-gray-700 text-white mt-2"
-  />
-  <label className="text-gray-400 mt-2">Time</label>
-  <input
-    type="time"
-    name="time"
-    value={editedEvent.time}
-    onChange={handleEditChange}
-    className="w-full p-2 rounded bg-gray-700 text-white mt-2"
-  />
-  <label className="text-gray-400 mt-2">Tags</label>
-  <input
-    type="text"
-    name="tags"
-    value={editedEvent.tags}
-    onChange={handleEditChange}
-    className="w-full p-2 rounded bg-gray-700 text-white mt-2"
-    placeholder="Comma-separated tags"
-  />
-  <label className="text-gray-400 mt-2">Image</label>
-  <input
-    type="file"
-    name="image"
-    onChange={(e) =>
+          <label className="text-gray-400">Title</label>
+          <input
+            type="text"
+            name="title"
+            value={editedEvent.title}
+            onChange={handleEditChange}
+            className="w-full p-2 rounded bg-gray-700 text-white"
+          />
+          <label className="text-gray-400 mt-2">Description</label>
+          <textarea
+            name="description"
+            value={editedEvent.description}
+            onChange={handleEditChange}
+            className="w-full p-2 rounded bg-gray-700 text-white mt-2"
+          />
+          <label className="text-gray-400 mt-2">Location</label>
+          <input
+            type="text"
+            name="location"
+            value={editedEvent.location}
+            onChange={handleEditChange}
+            className="w-full p-2 rounded bg-gray-700 text-white mt-2"
+          />
+          <label className="text-gray-400 mt-2">Date</label>
+          <input
+            type="date"
+            name="date"
+            value={editedEvent.date}
+            onChange={handleEditChange}
+            className="w-full p-2 rounded bg-gray-700 text-white mt-2"
+          />
+          <label className="text-gray-400 mt-2">Time</label>
+          <input
+            type="time"
+            name="time"
+            value={editedEvent.time}
+            onChange={handleEditChange}
+            className="w-full p-2 rounded bg-gray-700 text-white mt-2"
+          />
+          <label className="text-gray-400 mt-2">Tags</label>
+          <input
+            type="text"
+            name="tags"
+            value={editedEvent.tags}
+            onChange={handleEditChange}
+            className="w-full p-2 rounded bg-gray-700 text-white mt-2"
+            placeholder="Comma-separated tags"
+          />
+          <label className="text-gray-400 mt-2">Image</label>
+          <input
+            type="file"
+            name="image"
+            onChange={(e) =>
               setEditedEvent({ ...editedEvent, image: e.target.files[0] })
             }
-    className="w-full p-2 rounded bg-gray-700 text-white mt-2"
-  />
-  <button type="submit" className="mt-2 p-2 bg-green-600 rounded">
-    Save Changes
-  </button>
-  <button
-    type="button"
-    className="mt-2 p-2 bg-gray-600 rounded ml-2"
-    onClick={() => setIsEditing(false)}
-  >
-    Cancel
-  </button>
-</form>
+            className="w-full p-2 rounded bg-gray-700 text-white mt-2"
+          />
+          <button type="submit" className="mt-2 p-2 bg-green-600 rounded">
+            Save Changes
+          </button>
+          <button
+            type="button"
+            className="mt-2 p-2 bg-gray-600 rounded ml-2"
+            onClick={() => setIsEditing(false)}
+          >
+            Cancel
+          </button>
+        </form>
       ) : (
         <>
           {event.image && (
@@ -230,12 +222,31 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
               className="w-full h-60 object-cover rounded-lg"
             />
           )}
-          <h2 className="text-xl font-bold mt-2 break-words overflow-hidden whitespace-normal">{event.title}</h2>
-          <p className="text-gray-600 break-words overflow-hidden whitespace-normal">{event.description}</p>
+          <h2 className="text-xl font-bold mt-2 break-words overflow-hidden whitespace-normal">
+            {event.title}
+          </h2>
+          <p className="text-gray-600 break-words overflow-hidden whitespace-normal my-2">
+            {event.description}
+          </p>
           <p className="text-gray-500">📍 {event.location}</p>
-          <p className="text-gray-500">{formatDateTime(event.date, event.time)}</p>
-          <p className="text-gray-500">Tags: {event.tags}</p>
-          <p className="text-gray-500">Attendees: {attendees}</p>
+          <p className="text-gray-500 my-2">
+            {formatDateTime(event.date, event.time)}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {event.tags.map((tag, index) => (
+              <span
+                key={index}
+                className={`px-3 py-1 rounded-full text-white text-sm font-medium`}
+                style={{
+                  backgroundColor: getRandomColor(tag), // Function to assign a random color
+                }}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <p className="text-gray-500 mt-2">Attendees: {attendees}</p>
           {isOwner ? (
             <div className="mt-4 space-x-2">
               <button

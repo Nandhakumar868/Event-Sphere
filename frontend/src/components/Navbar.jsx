@@ -1,7 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { AuthContext } from "../context/AuthProvider";
-import EventForm from "./EventForm"; // Import EventForm
 import { UserCircleIcon } from "@heroicons/react/24/solid"; // Import Heroicon
 
 const Navbar = () => {

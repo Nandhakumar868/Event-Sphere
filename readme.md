@@ -48,9 +48,11 @@ Event Sphere is an Event Management Application (SPA) designed to demonstrate fu
    git clone https://github.com/yourusername/event-sphere.git 
 
 2. Navigate to the project directory
+    ```bash  
     cd event-sphere 
 
 3. Install dependencies for both frontend and backend
+    ```bash  
     cd frontend  
     npm install  
     cd ../backend  
@@ -59,19 +61,23 @@ Event Sphere is an Event Management Application (SPA) designed to demonstrate fu
 4. Configure environment variables in a .env file for the backend
 
   Backend (/backend/.env):
+    ```bash  
     MONGO_URI=<your_mongo_uri>
     JWT_SECRET=<your_jwt_secret>
     JWT_EXPIRES_IN=7d
     PORT=5000
 
   Frontend (/frontend/.env):
+    ```bash  
     VITE_API_URL=http://localhost:5000
 
 5. Start the development server
+    ```bash  
     cd backend  
     npm start  
 
 6. In a separate terminal, start the frontend
+    ```bash  
     cd frontend  
     npm run dev  
 

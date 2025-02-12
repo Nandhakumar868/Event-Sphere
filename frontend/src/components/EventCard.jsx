@@ -6,13 +6,17 @@ const backendUrl = import.meta.env.VITE_API_URL;
 
 const formatDateTime = (dateString, timeString) => {
   const date = new Date(dateString);
-  
+
   if (isNaN(date.getTime())) {
     return "Invalid date";
   }
 
   // Format date as DD/MM/YYYY
-  const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+  const formattedDate = `${date.getDate().toString().padStart(2, "0")}/${(
+    date.getMonth() + 1
+  )
+    .toString()
+    .padStart(2, "0")}/${date.getFullYear()}`;
 
   // Convert time to 12-hour format with AM/PM
   const [hours, minutes] = timeString.split(":");
@@ -26,7 +30,9 @@ const formatDateTime = (dateString, timeString) => {
   const ampm = hour >= 12 ? "PM" : "AM";
   const formattedHour = hour % 12 || 12; // Convert 0 to 12 for 12-hour format
 
-  const formattedTime = `${formattedHour}:${min.toString().padStart(2, '0')} ${ampm}`;
+  const formattedTime = `${formattedHour}:${min
+    .toString()
+    .padStart(2, "0")} ${ampm}`;
 
   return `${formattedDate} at ${formattedTime}`;
 };
@@ -34,13 +40,12 @@ const formatDateTime = (dateString, timeString) => {
 const EventCard = ({ event, isPast, onClick }) => {
   const user = JSON.parse(localStorage.getItem("user"));
   const isOwner = user && user._id === event.createdBy;
-  const [attendees, setAttendees] = useState(event.attendeesCount);
+  // const [attendees, setAttendees] = useState(event.attendeesCount);
   const [joined, setJoined] = useState(event.attendees.includes(user?._id));
 
   const handleJoinEvent = async () => {
     if (!user) return toast.warn("Please log in to join the event");
 
-    setAttendees((prev) => prev + 1);
     setJoined(true);
   };
 
@@ -60,10 +65,12 @@ const EventCard = ({ event, isPast, onClick }) => {
         alt={event.title}
         className="w-full h-50 object-cover rounded-lg"
       />
-      <h3 className="text-xl font-bold mt-2 break-words overflow-hidden whitespace-normal">{event.title}</h3>
+      <h3 className="text-xl font-bold mt-2 break-words overflow-hidden whitespace-normal">
+        {event.title}
+      </h3>
       <p className="text-gray-500">{formatDateTime(event.date, event.time)}</p>
       <p className="text-gray-500">📍 {event.location}</p>
-      <p className="text-gray-500">Attendees: {attendees}</p>
+      <p className="text-gray-500">Attendees: {event.attendeesCount}</p>
 
       {!isPast && (
         <div className="flex justify-end">

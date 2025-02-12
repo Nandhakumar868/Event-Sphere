@@ -60,8 +60,6 @@ const createEvent = async (req, res) => {
   }
 };
 
-
-
 // Get all events (Public access)
 const getEvents = async (req, res) => {
   try {
@@ -106,15 +104,16 @@ const joinEvent = async (req, res) => {
 
     await event.save();
 
-    // Emit to all connected clients (including sender)
-    // req.io.emit("attendee_joined", { 
-    //   eventId: req.params.id, 
-    //   attendeesCount: event.attendeesCount 
-    // });
+    req.io.emit("attendee_joined", {
+      eventId: req.params.id,
+      attendeesCount: event.attendeesCount,
+    });
 
-     req.io.to(req.params.id).emit("attendee_joined", { eventId: req.params.id, attendeesCount: event.attendeesCount });
-
-    res.json(event);
+    res.json({
+      message: "Successfully joined the event",
+      attendeesCount: event.attendeesCount,
+    });
+    // res.json(event);
   } catch (error) {
     res.status(500).json({ message: "Server error", result: req.params });
   }
@@ -131,7 +130,7 @@ const updateEvent = async (req, res) => {
     if (updateData.tags) {
       updateData.tags = Array.isArray(updateData.tags)
         ? updateData.tags
-        : updateData.tags.split(",").map(tag => tag.trim());
+        : updateData.tags.split(",").map((tag) => tag.trim());
     }
 
     // Handle image update
@@ -157,8 +156,6 @@ const updateEvent = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-
 
 // Delete an event (Only event creator can delete)
 const deleteEvent = async (req, res) => {

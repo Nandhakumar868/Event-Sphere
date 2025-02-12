@@ -4,9 +4,7 @@ import EventCard from "../components/EventCard";
 import EventForm from "../components/EventForm";
 import EventDetails from "./EventDetails";
 import { AuthContext } from "../context/AuthProvider";
-import { io } from "socket.io-client";
-
-const socket = io(`${import.meta.env.VITE_API_URL}`); // Update with your backend socket server URL
+import socket from "../../socket";
 
 const Dashboard = () => {
   const [events, setEvents] = useState([]);
@@ -25,28 +23,41 @@ const Dashboard = () => {
   useEffect(() => {
     const getEvents = async () => {
       const data = await fetchEvents();
-      setEvents(data);
-      filterEvents(data, "", "", "", "",[]);
+      setEvents(Array.isArray(data) ? data : []);
+      filterEvents(data, "", "", "", "", []);
     };
 
     getEvents();
-  }, []);
 
-useEffect(() => {
-  filterEvents(events, startDate, startTime, endDate, endTime, selectedTags);
-}, [events, startDate, startTime, endDate, endTime, selectedTags]);
-
-  useEffect(() => {
-    // Listen for events via Socket.IO
     socket.on("new_event", (newEvent) => {
-    console.log("New event received:", newEvent); // Ensure this logs every time a new event is received
-    setEvents((prevEvents) => {
-      if (prevEvents.some((event) => event._id === newEvent._id)) {
-        return prevEvents; // Avoid duplication
-      }
-      return [...prevEvents, newEvent];
+      console.log("New event received:", newEvent);
+      setEvents((prevEvents) => {
+        const eventExists = prevEvents.find(
+          (event) => event._id === newEvent._id
+        );
+        if (eventExists) return prevEvents;
+        const updatedEvents = [...prevEvents, newEvent];
+        return updatedEvents;
+      });
     });
-  });
+
+    socket.on("attendee_joined", ({ eventId, attendeesCount }) => {
+      console.log(
+        `Event ${eventId} updated with new attendee count: ${attendeesCount}`
+      );
+
+      setEvents((prevEvents) => {
+        const updatedEvents = prevEvents.map((event) => {
+          if (event._id === eventId) {
+            // Ensure a new object is created to trigger a state update
+            return { ...event, attendeesCount: attendeesCount };
+          }
+          return event;
+        });
+
+        return [...updatedEvents]; // Return a fresh array reference
+      });
+    });
 
     socket.on("event_updated", (updatedEvent) => {
       setEvents((prevEvents) =>
@@ -56,94 +67,93 @@ useEffect(() => {
       );
     });
 
-    socket.on("attendee_joined", ({ eventId, attendeesCount }) => {
-    setEvents((prevEvents) =>
-      prevEvents.map((event) =>
-        event._id === eventId ? { ...event, attendeesCount } : event
-      )
-    );
-  });
-
     socket.on("event_deleted", (deletedEventId) => {
+      console.log(`Event deleted: ${deletedEventId}`);
       setEvents((prevEvents) =>
         prevEvents.filter((event) => event._id !== deletedEventId)
       );
     });
 
     return () => {
+      console.log("Removing socket listeners for Dashboard");
       socket.off("new_event");
-      socket.off("event_updated");
       socket.off("attendee_joined");
+      socket.off("event_updated");
       socket.off("event_deleted");
     };
-  }, []);
+  }, []); // Empty dependency array ensures it's only set once.
 
+  useEffect(() => {
+    filterEvents(events, startDate, startTime, endDate, endTime, selectedTags);
+  }, [events, startDate, startTime, endDate, endTime, selectedTags]);
 
-const filterEvents = (
-  eventList,
-  sDate,
-  sTime,
-  eDate,
-  eTime,
-  selectedTags = []
-) => {
-  const currentDateTime = new Date();
-  let filteredEvents = eventList;
+  const filterEvents = (
+    eventList,
+    sDate,
+    sTime,
+    eDate,
+    eTime,
+    selectedTags = []
+  ) => {
+    const currentDateTime = new Date();
+    let filteredEvents = eventList;
 
-  const startDateTime = sDate
-    ? new Date(`${sDate}T${sTime || "00:00"}:00`)
-    : null;
-  const endDateTime = eDate
-    ? new Date(`${eDate}T${eTime || "23:59"}:00`)
-    : null;
+    const startDateTime = sDate
+      ? new Date(`${sDate}T${sTime || "00:00"}:00`)
+      : null;
+    const endDateTime = eDate
+      ? new Date(`${eDate}T${eTime || "23:59"}:00`)
+      : null;
 
-  filteredEvents = filteredEvents.filter((event) => {
-    const eventDateTime = new Date(event.date);
+    filteredEvents = filteredEvents.filter((event) => {
+      const eventDateTime = new Date(event.date);
 
-    // Normalize tags for comparison
-    const eventTags = (Array.isArray(event.tags) ? event.tags : []).map((tag) =>
-      tag.toLowerCase()
+      // Normalize tags for comparison
+      const eventTags = (Array.isArray(event.tags) ? event.tags : []).map(
+        (tag) => tag.toLowerCase()
+      );
+      const normalizedSelectedTags = selectedTags.map((tag) =>
+        tag.toLowerCase()
+      );
+
+      // Check date range
+      const isWithinDateRange =
+        (!startDateTime || eventDateTime >= startDateTime) &&
+        (!endDateTime || eventDateTime <= endDateTime);
+
+      // Check if event has at least one matching tag
+      const hasMatchingTag =
+        normalizedSelectedTags.length === 0 ||
+        eventTags.some((tag) => normalizedSelectedTags.includes(tag));
+
+      return isWithinDateRange && hasMatchingTag;
+    });
+
+    setUpcomingEvents(
+      filteredEvents.filter((event) => new Date(event.date) > currentDateTime)
     );
-    const normalizedSelectedTags = selectedTags.map((tag) => tag.toLowerCase());
+    setPastEvents(
+      filteredEvents.filter((event) => new Date(event.date) <= currentDateTime)
+    );
+  };
 
-    // Check date range
-    const isWithinDateRange =
-      (!startDateTime || eventDateTime >= startDateTime) &&
-      (!endDateTime || eventDateTime <= endDateTime);
+  const handleFilterChange = () => {
+    filterEvents(events, startDate, startTime, endDate, endTime, selectedTags);
+  };
 
-    // Check if event has at least one matching tag
-    const hasMatchingTag =
-      normalizedSelectedTags.length === 0 ||
-      eventTags.some((tag) => normalizedSelectedTags.includes(tag));
+  const clearFilters = () => {
+    setStartDate("");
+    setEndDate("");
+    setStartTime("");
+    setEndTime("");
+    setSelectedTags([]);
+  };
 
-    return isWithinDateRange && hasMatchingTag;
-  });
-
-  setUpcomingEvents(
-    filteredEvents.filter((event) => new Date(event.date) > currentDateTime)
-  );
-  setPastEvents(
-    filteredEvents.filter((event) => new Date(event.date) <= currentDateTime)
-  );
-};
-
-
-const handleFilterChange = () => {
-  filterEvents(events, startDate, startTime, endDate, endTime, selectedTags);
-};
-
-const clearFilters = () => {
-  setStartDate("");
-  setEndDate("");
-  setStartTime("");
-  setEndTime("");
-  setSelectedTags([]);
-};
-
-
-const toggleTag = (tag) => {
+  const toggleTag = (tag) => {
     setSelectedTags((prevTags) =>
-      prevTags.includes(tag) ? prevTags.filter((t) => t !== tag) : [...prevTags, tag]
+      prevTags.includes(tag)
+        ? prevTags.filter((t) => t !== tag)
+        : [...prevTags, tag]
     );
   };
 
@@ -232,7 +242,9 @@ const toggleTag = (tag) => {
               {availableTags.map((tag) => (
                 <button
                   key={tag}
-                  className={`px-3 py-1 rounded-md border ${selectedTags.includes(tag) ? 'bg-blue-500' : 'bg-gray-600'}`}
+                  className={`px-3 py-1 rounded-md border ${
+                    selectedTags.includes(tag) ? "bg-blue-500" : "bg-gray-600"
+                  }`}
                   onClick={() => toggleTag(tag)}
                 >
                   {tag}
@@ -261,7 +273,7 @@ const toggleTag = (tag) => {
         </div>
       )}
 
-       {showEventForm && (
+      {showEventForm && (
         <div className="fixed inset-0 bg-transparent backdrop-blur-md flex justify-center items-center z-50">
           <div className="bg-gray-900 text-white p-6 rounded-lg shadow-lg w-96">
             <h2 className="text-xl font-semibold mb-4">Create Event</h2>
@@ -288,13 +300,25 @@ const toggleTag = (tag) => {
             <EventDetails
               event={events.find((e) => e._id === selectedEvent?._id)}
               onDelete={(eventId) => {
-                setUpcomingEvents((prev) => prev.filter((event) => event._id !== eventId));
-                setPastEvents((prev) => prev.filter((event) => event._id !== eventId));
+                setUpcomingEvents((prev) =>
+                  prev.filter((event) => event._id !== eventId)
+                );
+                setPastEvents((prev) =>
+                  prev.filter((event) => event._id !== eventId)
+                );
                 setSelectedEvent(null);
               }}
               onUpdate={(updatedEvent) => {
-                setUpcomingEvents((prev) => prev.map((event) => (event._id === updatedEvent._id ? updatedEvent : event)));
-                setPastEvents((prev) => prev.map((event) => (event._id === updatedEvent._id ? updatedEvent : event)));
+                setUpcomingEvents((prev) =>
+                  prev.map((event) =>
+                    event._id === updatedEvent._id ? updatedEvent : event
+                  )
+                );
+                setPastEvents((prev) =>
+                  prev.map((event) =>
+                    event._id === updatedEvent._id ? updatedEvent : event
+                  )
+                );
               }}
             />
           </div>

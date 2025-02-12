@@ -24,14 +24,31 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api/auth", authRoutes);
-app.use("/api/events", (req, res, next) => {
-  req.io = io; // Pass io instance to controllers
-  next();
-}, eventRoutes);
+app.use(
+  "/api/events",
+  (req, res, next) => {
+    req.io = io; // Pass io instance to controllers
+    next();
+  },
+  eventRoutes
+);
 
 io.use(authenticateSocket);
 io.on("connection", (socket) => {
   console.log(`New client connected: ${socket.id}, User: ${socket.user.name}`);
+
+  socket.on("create_event", async (eventData) => {
+    try {
+      if (eventData._id) {
+        delete eventData._id; // Ensure no duplicate key error
+      }
+
+      const event = await Event.create(eventData);
+      io.emit("new_event", event); // Broadcast to all clients
+    } catch (error) {
+      console.error("Error creating event:", error);
+    }
+  });
 
   socket.on("join_event", (eventId) => {
     if (!eventId) {
@@ -40,17 +57,6 @@ io.on("connection", (socket) => {
     }
     socket.join(eventId);
     console.log(`User joined event room: ${eventId}`);
-  });
-
-
-  socket.on("create_event", async (eventData, callback) => {
-    try {
-      const event = await Event.create(eventData);
-      console.log("New event created:", event); // Ensure this logs
-      io.emit("new_event", event); // Broadcast to all clients
-    } catch (error) {
-      console.error("Error creating event:", error);
-    }
   });
 
   // Update an event
@@ -66,26 +72,12 @@ io.on("connection", (socket) => {
       );
 
       if (updatedEvent) {
-        io.to(updatedEvent._id.toString()).emit("event_updated", updatedEvent);
+        console.log("Event updated successfully:");
       } else {
         console.log("Event not found");
       }
     } catch (error) {
-      console.error("Error updating event:", error);    }
-  });
-
-  // Delete an event
-  socket.on("delete_event", async (eventId, callback) => {
-    try {
-      const event = await Event.findById(eventId);
-      if (event) {
-        await event.deleteOne();
-        io.emit("event_deleted", eventId);
-      } else {
-        console.log("Event not found");
-      }
-    } catch (error) {
-      console.error("Error deleting event:", error);
+      console.error("Error updating event:", error);
     }
   });
 

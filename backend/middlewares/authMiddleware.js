@@ -14,9 +14,9 @@ const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.id).select("-password");
 
-       if (!req.user) {
-         return res.status(401).json({ message: "User not found" });
-       }
+      if (!req.user) {
+        return res.status(401).json({ message: "User not found" });
+      }
 
       return next();
     } catch (error) {
@@ -39,7 +39,7 @@ const authenticateSocket = async (socket, next) => {
   }
 
   try {
-   const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await User.findById(decoded.id).select("-password");
     if (!user) {
@@ -53,14 +53,6 @@ const authenticateSocket = async (socket, next) => {
     console.error("Socket authentication failed:", error.message);
     next(new Error("Authentication error: Invalid or expired token"));
   }
-
-  // try {
-  //   const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  //   socket.user = decoded;
-  //   next();
-  // } catch (error) {
-  //   next(new Error("Authentication error"));
-  // }
 };
 
 module.exports = { protect, authenticateSocket };

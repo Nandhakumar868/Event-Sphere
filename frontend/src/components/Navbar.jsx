@@ -4,13 +4,13 @@ import { AuthContext } from "../context/AuthProvider";
 import { UserCircleIcon } from "@heroicons/react/24/solid"; // Import Heroicon
 
 const Navbar = () => {
-  const {token, logoutUser } = useContext(AuthContext);
+  const { token, logoutUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
   const handleLogout = () => {
     logoutUser();
-    navigate("/login"); // Redirect to login
+    navigate("/login", { replace: true }); // Redirect to login
   };
 
   return (
@@ -24,7 +24,7 @@ const Navbar = () => {
           <div className="flex items-center space-x-4">
             {token && (
               <>
-                <p className="hidden md:inline">{ user.email}</p>
+                <p className="hidden md:inline">{user.email}</p>
 
                 {/* User Icon Instead of Image */}
                 <UserCircleIcon className="w-10 h-10 text-blue-400" />
@@ -40,8 +40,6 @@ const Navbar = () => {
           </div>
         </div>
       </nav>
-
-      
     </>
   );
 };

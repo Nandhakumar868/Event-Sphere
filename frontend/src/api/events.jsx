@@ -1,19 +1,11 @@
-import { io } from "socket.io-client";
+import socket from "../../socket";
 
-const token = localStorage.getItem("token"); // Ensure the token is available
-
-const backendUrl = import.meta.env.VITE_API_URL
-
-const socket = io(backendUrl, {
-  transports: ["websocket"],
-  auth: { token },
-});
+const backendUrl = import.meta.env.VITE_API_URL;
 
 // Connect and listen to Socket.IO events
 socket.on("connect", () => {
   console.log("Connected to Socket.IO server", socket.id);
 });
-
 
 // Listen for real-time updates
 socket.on("new_event", (event) => {
@@ -30,6 +22,10 @@ socket.on("attendee_joined", (event) => {
 
 socket.on("event_deleted", (eventId) => {
   console.log(`User deleted event: ${eventId}`);
+});
+
+socket.on("connect_error", (err) => {
+  console.error("Socket connection error:", err.message);
 });
 
 // Fetch all events
@@ -70,13 +66,7 @@ export const createEvent = async (eventData, token) => {
       throw new Error(errorData.message || "Failed to create event");
     }
 
-    const newEvent = await response.json();
-
-    // Emit the event to notify others
-    // socket.emit("create_event", newEvent);
-    console.log("Event created successfully:", newEvent); // Check if this appears
-
-    return newEvent;
+    return await response.json();
   } catch (error) {
     console.error("Error creating event:", error);
     return { error: error.message };
@@ -86,16 +76,13 @@ export const createEvent = async (eventData, token) => {
 // Join and event
 export const joinEvent = async (id, token) => {
   try {
-    const response = await fetch(
-      `${backendUrl}/api/events/${id}/join`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // Requires authentication
-        },
-      }
-    );
+    const response = await fetch(`${backendUrl}/api/events/${id}/join`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // Requires authentication
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -105,9 +92,9 @@ export const joinEvent = async (id, token) => {
     const joinedEvent = await response.json();
 
     // Emit the event to notify others
-    socket.emit("attendee_joined", id);
+    socket.emit("join_event", id);
 
-    return joinedEvent
+    return joinedEvent;
   } catch (error) {
     console.error("Error joining event:", error);
     return { error: error.message };
@@ -126,18 +113,12 @@ export const updateEvent = async (id, eventData, token) => {
       body: JSON.stringify(eventData),
     });
 
-
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || "Failed to update event");
     }
 
-    const updatedEvent = await response.json();
-
-    // Emit the event to notify others
-    socket.emit("update_event", updatedEvent);
-
-    return updatedEvent
+    return await response.json();
   } catch (error) {
     console.error("Error updating event:", error);
     return { error: error.message };
@@ -160,12 +141,7 @@ export const deleteEvent = async (id, token) => {
       throw new Error(errorData.message || "Failed to delete event");
     }
 
-    const deletedEvent = await response.json();
-
-    //Optionally, you could emit a "deleteEvent" message if needed.
-    socket.emit("delete_event", id);
-
-    return deletedEvent
+    return await response.json();
   } catch (error) {
     console.error("Error deleting event:", error);
     return { error: error.message };

@@ -1,22 +1,24 @@
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 import { joinEvent, deleteEvent, updateEvent } from "../api/events";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { io } from "socket.io-client";
-
-const socket = io(`${import.meta.env.VITE_API_URL}`); // Update with your backend socket server URL
+import socket from "../../socket";
 
 const backendUrl = import.meta.env.VITE_API_URL;
 
 const formatDateTime = (dateString, timeString) => {
   const date = new Date(dateString);
-  
+
   if (isNaN(date.getTime())) {
     return "Invalid date";
   }
 
   // Format date as DD/MM/YYYY
-  const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+  const formattedDate = `${date.getDate().toString().padStart(2, "0")}/${(
+    date.getMonth() + 1
+  )
+    .toString()
+    .padStart(2, "0")}/${date.getFullYear()}`;
 
   // Convert time to 12-hour format with AM/PM
   const [hours, minutes] = timeString.split(":");
@@ -30,7 +32,9 @@ const formatDateTime = (dateString, timeString) => {
   const ampm = hour >= 12 ? "PM" : "AM";
   const formattedHour = hour % 12 || 12; // Convert 0 to 12 for 12-hour format
 
-  const formattedTime = `${formattedHour}:${min.toString().padStart(2, '0')} ${ampm}`;
+  const formattedTime = `${formattedHour}:${min
+    .toString()
+    .padStart(2, "0")} ${ampm}`;
 
   return `${formattedDate} at ${formattedTime}`;
 };
@@ -49,38 +53,37 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
 
   useEffect(() => {
     if (!event || !event._id) return;
-    
-    socket.on("event_updated", (updatedEvent) => {
+
+    const handleAttendeeJoined = ({ eventId, attendeesCount }) => {
+      if (eventId === event._id) {
+        setAttendees(attendeesCount);
+      }
+    };
+
+    const handleEventUpdated = (updatedEvent) => {
       if (updatedEvent._id === event._id) {
         setEditedEvent(updatedEvent);
         setAttendees(updatedEvent.attendeesCount);
         onUpdate(updatedEvent);
-        toast.info("Event details updated in real-time!");
       }
-    });
+    };
 
-    socket.on("attendee_joined", ({ eventId, attendeesCount }) => {
-    console.log(`Dashboard: attendee_joined for event ${eventId}, count: ${attendeesCount}`);
-    setEvents((prevEvents) =>
-      prevEvents.map((event) =>
-        event._id === eventId ? { ...event, attendeesCount } : event
-      )
-    );
-  });
-
-    socket.on("event_deleted", (deletedEventId) => {
+    const handleEventDeleted = (deletedEventId) => {
       if (deletedEventId === event._id) {
         onDelete(deletedEventId);
-        toast.error("This event has been deleted.");
       }
-    });
+    };
+
+    socket.on("attendee_joined", handleAttendeeJoined);
+    socket.on("event_updated", handleEventUpdated);
+    socket.on("event_deleted", handleEventDeleted);
 
     return () => {
-      socket.off("event_updated");
-      socket.off("attendee_joined");
-      socket.off("event_deleted");
+      socket.off("attendee_joined", handleAttendeeJoined);
+      socket.off("event_updated", handleEventUpdated);
+      socket.off("event_deleted", handleEventDeleted);
     };
-  }, [event._id, onUpdate,onDelete]);
+  }, [event, onUpdate, onDelete]);
 
   const handleJoinEvent = async () => {
     if (joined) return;
@@ -88,8 +91,7 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
     const response = await joinEvent(event._id, user.token);
     if (!response.error) {
       setJoined(true);
-      socket.emit("attendee_joined", event._id); // Notify backend
-      setAttendees((prev) => prev + 1);
+
       toast.success("You joined the event!");
     }
   };
@@ -99,7 +101,7 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
     const response = await deleteEvent(event._id, user.token);
     if (!response.error) {
       onDelete(event._id);
-      socket.emit("delete_event", event._id); // Notify backend
+      //socket.emit("delete_event", event._id); // Notify backend
       toast.success("Event deleted successfully!");
     }
     setIsDeleting(false);
@@ -107,12 +109,12 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
   };
 
   const handleEditChange = (e) => {
-  const { name, value } = e.target;
-  setEditedEvent({ ...editedEvent, [name]: value });
-};
+    const { name, value } = e.target;
+    setEditedEvent({ ...editedEvent, [name]: value });
+  };
 
   const handleUpdateEvent = async (e) => {
-      e.preventDefault();
+    e.preventDefault();
     const response = await updateEvent(
       editedEvent._id,
       editedEvent,
@@ -120,7 +122,6 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
     );
     if (!response.error) {
       onUpdate(editedEvent);
-      socket.emit("update_event", editedEvent); // Notify backend
       setIsEditing(false);
       toast.success("Event updated successfully!");
     }
@@ -139,7 +140,6 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
     const index = Math.abs(tag.charCodeAt(0) % colors.length); // Pick color based on the tag
     return colors[index];
   };
-
 
   return (
     <div className="text-white">
@@ -202,12 +202,12 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
             }
             className="w-full p-2 rounded bg-gray-700 text-white mt-2"
           />
-          <button type="submit" className="mt-2 p-2 bg-green-600 rounded">
+          <button type="submit" className="mt-2 p-2 bg-green-600 rounded cursor-pointer">
             Save Changes
           </button>
           <button
             type="button"
-            className="mt-2 p-2 bg-gray-600 rounded ml-2"
+            className="mt-2 p-2 bg-gray-600 rounded ml-2 cursor-pointer"
             onClick={() => setIsEditing(false)}
           >
             Cancel
@@ -265,7 +265,7 @@ const EventDetails = ({ event, onDelete, onUpdate }) => {
           ) : (
             <button
               className={`mt-4 p-2 rounded text-white ${
-                joined ? "bg-gray-600 cursor-not-allowed" : "bg-green-600"
+                joined ? "bg-gray-600 cursor-not-allowed" : "bg-green-600 cursor-pointer"
               }`}
               onClick={handleJoinEvent}
               disabled={joined}

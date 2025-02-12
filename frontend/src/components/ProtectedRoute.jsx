@@ -6,7 +6,7 @@ const ProtectedRoute = ({ children }) => {
   const { token, isGuest } = useContext(AuthContext);
 
   if (!token && !isGuest) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
   return children;

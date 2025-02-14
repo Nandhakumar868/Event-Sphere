@@ -5,6 +5,8 @@ Event Sphere is an Event Management Application (SPA) designed to demonstrate fu
 
 ---
 
+Live Project Link : [Link](https://event-sphere-project.netlify.app/)
+
 
 ## Features  
 ### Frontend  
